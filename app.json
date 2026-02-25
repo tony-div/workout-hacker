@@ -1,4 +1,33 @@
 {
-  "name": "WorkoutHacker",
-  "displayName": "WorkoutHacker"
+  "expo": {
+    "name": "mobile-app",
+    "slug": "mobile-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./src/assets/images/workout_hacker_logo.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "backgroundColor": "#0F0F1A"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.mobileapp.workout"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./src/assets/images/workout_hacker_logo.png",
+        "backgroundColor": "#0F0F1A"
+      },
+      "package": "com.mobileapp.workout"
+    },
+    "web": {
+      "favicon": "./src/assets/images/workout_hacker_logo.png"
+    },
+    "plugins": [
+      "expo-asset"
+    ]
+  }
 }

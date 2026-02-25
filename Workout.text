@@ -1,0 +1,67 @@
+# Workout Hacker — Onboarding Feature
+# Complete React Native + TypeScript Implementation
+
+---
+
+## 📁 Folder Structure
+
+```
+WorkoutHacker/
+├── App.tsx                                    ← Root integration point
+└── src/
+    ├── theme/
+    │   └── colors.ts                          ← Design tokens (colors, spacing, typography)
+    ├── navigation/
+    │   └── types.ts                           ← Navigation param list types
+    └── features/
+        └── onboarding/
+            ├── index.ts                       ← Barrel export (public API)
+            ├── OnboardingNavigator.tsx        ← Splash → Carousel flow controller
+            ├── constants/
+            │   └── slides.ts                  ← Slide data (single source of truth)
+            ├── hooks/
+            │   └── useOnboarding.ts           ← All carousel logic (scroll, index, CTA)
+            ├── components/
+            │   ├── CTAButton.tsx              ← Reusable button (filled / outline / ghost)
+            │   ├── PaginationDots.tsx         ← Animated dot indicators
+            │   ├── SlideImage.tsx             ← Image with dev placeholder fallback
+            │   └── OnboardingSlide.tsx        ← Single slide renderer (title + image + desc)
+            └── screens/
+                ├── SplashScreen.tsx           ← Screen 1: logo + spinner + tagline
+                └── OnboardingScreen.tsx       ← Screens 2-5: horizontal carousel
+```
+
+---
+
+## 🖼️ Real Assets Integration Checklist
+
+When design assets are ready, replace placeholders in these files:
+
+1. **SplashScreen.tsx** — logo:
+   ```tsx
+   <Image source={require('../../../assets/images/workout_hacker_logo.png')} />
+   ```
+
+2. **OnboardingScreen.tsx** — IMAGE_MAP constant:
+   ```tsx
+   const IMAGE_MAP = {
+     onboarding_ai_coach:     require('../../../assets/images/onboarding_ai_coach.png'),
+     onboarding_train_smarter: require('../../../assets/images/onboarding_train_smarter.png'),
+     onboarding_data_control:  require('../../../assets/images/onboarding_data_control.png'),
+     onboarding_get_started:   require('../../../assets/images/onboarding_get_started.png'),
+   };
+   ```
+
+---
+
+## 📦 Dependencies
+
+Minimal — only core React Native APIs:
+- `react-native` (FlatList, Animated, TouchableOpacity, etc.)
+- `react-native-safe-area-context` (for SafeAreaProvider in App.tsx)
+
+Optional (if using React Navigation instead of the built-in step controller):
+- `@react-navigation/native`
+- `@react-navigation/native-stack`
+
+---
