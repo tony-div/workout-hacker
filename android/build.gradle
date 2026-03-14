@@ -1,0 +1,57 @@
+buildscript {
+  repositories {
+    google()
+    mavenCentral()
+  }
+  dependencies {
+    classpath("com.android.tools.build:gradle:8.1.1")
+    classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:2.0.21")
+  }
+}
+
+plugins {
+    id("com.facebook.react") version "0.76.9" apply false
+    id("org.jetbrains.kotlin.android") version "1.8.22" apply false
+}
+
+ext {
+    buildToolsVersion = "35.0.0"
+    minSdkVersion = 24
+    compileSdkVersion = 35
+    targetSdkVersion = 35
+    ndkVersion = "27.1.12297006"
+    kotlinVersion = "1.8.22"
+}
+
+subprojects {
+    afterEvaluate { project ->
+        if (project.hasProperty('android')) {
+            project.android {
+                if (it.hasProperty('compileSdkVersion')) {
+                    compileSdkVersion rootProject.ext.compileSdkVersion
+                }
+                if (it.hasProperty('buildToolsVersion')) {
+                    buildToolsVersion rootProject.ext.buildToolsVersion
+                }
+                if (it.hasProperty('defaultConfig')) {
+                    if (it.defaultConfig.hasProperty('minSdkVersion')) {
+                        it.defaultConfig.minSdkVersion rootProject.ext.minSdkVersion
+                    }
+                    if (it.defaultConfig.hasProperty('targetSdkVersion')) {
+                        it.defaultConfig.targetSdkVersion rootProject.ext.targetSdkVersion
+                    }
+                }
+            }
+        }
+    }
+
+    configurations.all {
+        resolutionStrategy {
+            force 'androidx.core:core:1.15.0'
+            force 'androidx.core:core-ktx:1.15.0'
+            force "com.facebook.react:react-android:0.76.9"
+            force "com.facebook.react:hermes-android:0.76.9"
+            force "com.facebook.react:react-native:0.76.9"
+        }
+    }
+}
