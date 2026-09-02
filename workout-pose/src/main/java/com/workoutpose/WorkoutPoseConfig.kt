@@ -22,8 +22,12 @@ data class WorkoutPoseConfig(
     val enableOneEuroFilter: Boolean = true,
     /** Linear extrapolation of the latest frame to the current wall-clock time. */
     val enableMotionPrediction: Boolean = false,
-    val oneEuroMinCutoff: Float = 1.0f,
-    val oneEuroBeta: Float = 0.009f,
+    /** One Euro minimum cutoff in Hz (0.1..10). Higher = less lag at rest, more jitter. */
+    val oneEuroMinCutoff: Float = 2.0f,
+    /** One Euro velocity response (0..0.1). Higher = keeps up with fast motion. */
+    val oneEuroBeta: Float = 0.02f,
+    /** One Euro derivative cutoff in Hz (0.1..20). Speeds up/slows jitter rejection. */
+    val oneEuroDCutoff: Float = 1.0f,
     /** CameraX lens facing, one of [CameraSelector.LENS_FACING_FRONT] / [CameraSelector.LENS_FACING_BACK]. */
     val lensFacing: Int = CameraSelector.LENS_FACING_FRONT,
 ) {

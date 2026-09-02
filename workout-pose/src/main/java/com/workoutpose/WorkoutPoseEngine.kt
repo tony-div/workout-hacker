@@ -22,6 +22,9 @@ class WorkoutPoseEngine(initialConfig: WorkoutPoseConfig = WorkoutPoseConfig.DEF
         set(value) {
             synchronized(stateLock) {
                 field = value
+                oneEuroMinCutoff = value.oneEuroMinCutoff
+                oneEuroBeta = value.oneEuroBeta
+                oneEuroDCutoff = value.oneEuroDCutoff
                 resetFilters()
             }
         }
@@ -31,10 +34,27 @@ class WorkoutPoseEngine(initialConfig: WorkoutPoseConfig = WorkoutPoseConfig.DEF
     var lastFrameTimestampMs: Long = 0L
         private set
 
+    // Live One Euro parameters. Kept separate from [config] so they can be
+    // retuned on the fly (without a camera/model restart) via [updateOneEuroParameters].
+    private var oneEuroMinCutoff: Float = initialConfig.oneEuroMinCutoff
+    private var oneEuroBeta: Float = initialConfig.oneEuroBeta
+    private var oneEuroDCutoff: Float = initialConfig.oneEuroDCutoff
+
     private var oneEuroFilters: Array<OneEuroFilter>? = null
     private var previousFrame: LandmarkFrame? = null
     private var latestFrame: LandmarkFrame? = null
     private var latestGoodCoords: FloatArray? = null
+
+    /** Re-tunes the One Euro filter in place without resetting filter state or the camera. */
+    fun updateOneEuroParameters(minCutoff: Float, beta: Float, dCutoff: Float) {
+        synchronized(stateLock) {
+            if (minCutoff <= 0f || dCutoff <= 0f || beta < 0f) return
+            oneEuroMinCutoff = minCutoff
+            oneEuroBeta = beta
+            oneEuroDCutoff = dCutoff
+            oneEuroFilters?.forEach { it.configure(minCutoff, beta, dCutoff) }
+        }
+    }
 
     fun resetFilters() {
         synchronized(stateLock) {
@@ -46,10 +66,15 @@ class WorkoutPoseEngine(initialConfig: WorkoutPoseConfig = WorkoutPoseConfig.DEF
     }
 
     /**
-     * Consumes a raw MediaPipe frame and returns the processed flat buffer
-     * (33 landmarks x [x, y, z, visibility]).
+     * Consumes a raw MediaPipe frame and returns the processed flat buffer (33 landmarks x [x, y,
+     * z, visibility]).
      */
-    fun feed(rawCoords: FloatArray, rawVisibility: FloatArray, timestampMs: Long, inferenceTimeMs: Double): FloatArray {
+    fun feed(
+            rawCoords: FloatArray,
+            rawVisibility: FloatArray,
+            timestampMs: Long,
+            inferenceTimeMs: Double
+    ): FloatArray {
         synchronized(stateLock) {
             lastInferenceTimeMs = inferenceTimeMs
             lastFrameTimestampMs = timestampMs
@@ -61,7 +86,8 @@ class WorkoutPoseEngine(initialConfig: WorkoutPoseConfig = WorkoutPoseConfig.DEF
             val visibility = rawVisibility.copyOf()
 
             val lastGood = latestGoodCoords
-            if (config.enableVisibilityRecovery && lastGood != null && lastGood.size == coords.size) {
+            if (config.enableVisibilityRecovery && lastGood != null && lastGood.size == coords.size
+            ) {
                 for (index in visibility.indices) {
                     if (visibility[index] < config.minVisibilityConfidence) {
                         coords[index * 3] = lastGood[index * 3]
@@ -71,18 +97,26 @@ class WorkoutPoseEngine(initialConfig: WorkoutPoseConfig = WorkoutPoseConfig.DEF
                 }
             }
 
-            val filteredCoords = if (config.enableOneEuroFilter) {
-                applyOneEuroFilters(coords, timestampMs)
-            } else {
-                coords
-            }
+            val filteredCoords =
+                    if (config.enableOneEuroFilter) {
+                        applyOneEuroFilters(coords, timestampMs)
+                    } else {
+                        coords
+                    }
 
-            val frame = LandmarkFrame(timestampMs = timestampMs, coords = filteredCoords, visibility = visibility)
+            val frame =
+                    LandmarkFrame(
+                            timestampMs = timestampMs,
+                            coords = filteredCoords,
+                            visibility = visibility
+                    )
             previousFrame = latestFrame
             latestFrame = frame
             latestGoodCoords = filteredCoords.copyOf()
 
-            val outputCoords = if (config.enableMotionPrediction) predict(frame, previousFrame) else frame.coords
+            val outputCoords =
+                    if (config.enableMotionPrediction) predict(frame, previousFrame)
+                    else frame.coords
             return flattenFrame(outputCoords, frame.visibility)
         }
     }
@@ -118,7 +152,7 @@ class WorkoutPoseEngine(initialConfig: WorkoutPoseConfig = WorkoutPoseConfig.DEF
             oneEuroFilters = Array(coordCount) { OneEuroFilter() }
         }
         (filters ?: oneEuroFilters!!).forEach {
-            it.configure(config.oneEuroMinCutoff, config.oneEuroBeta)
+            it.configure(oneEuroMinCutoff, oneEuroBeta, oneEuroDCutoff)
         }
     }
 
@@ -126,7 +160,9 @@ class WorkoutPoseEngine(initialConfig: WorkoutPoseConfig = WorkoutPoseConfig.DEF
         val filters = oneEuroFilters ?: return coords
         val filtered = FloatArray(coords.size)
         for (i in coords.indices) {
-            filtered[i] = filters[i].filter(coords[i], timestampMs / 1000f)
+            filtered[i] =
+                    filters[i].filter(coords[i] * ONE_EURO_SCALE, timestampMs / 1000f) /
+                            ONE_EURO_SCALE
         }
         return filtered
     }
@@ -144,23 +180,24 @@ class WorkoutPoseEngine(initialConfig: WorkoutPoseConfig = WorkoutPoseConfig.DEF
     }
 
     private data class LandmarkFrame(
-        val timestampMs: Long,
-        val coords: FloatArray,
-        val visibility: FloatArray,
+            val timestampMs: Long,
+            val coords: FloatArray,
+            val visibility: FloatArray,
     )
 
     private class OneEuroFilter {
         private var minCutoff: Float = 0.4f
         private var beta: Float = 0.007f
-        private val dCutoff: Float = 1.0f
+        private var dCutoff: Float = 1.0f
         private var initialized = false
         private var previousTimestampSec = 0f
         private var previousValue = 0f
         private var previousDerivative = 0f
 
-        fun configure(minCutoff: Float, beta: Float) {
+        fun configure(minCutoff: Float, beta: Float, dCutoff: Float) {
             this.minCutoff = minCutoff
             this.beta = beta
+            this.dCutoff = dCutoff
         }
 
         fun filter(value: Float, timestampSec: Float): Float {
@@ -196,10 +233,15 @@ class WorkoutPoseEngine(initialConfig: WorkoutPoseConfig = WorkoutPoseConfig.DEF
         }
 
         private fun lowPass(alpha: Float, value: Float, previous: Float): Float =
-            alpha * value + (1f - alpha) * previous
+                alpha * value + (1f - alpha) * previous
     }
 
     private companion object {
         const val MOTION_THRESHOLD = 0.0005f
+
+        // Coordinates are normalized (0..1) with tiny per-frame deltas; scaling to
+        // a ~screen-pixel magnitude makes One Euro's beta behave like the classic
+        // pixel-space filter instead of being drowned out by small units.
+        const val ONE_EURO_SCALE = 1000f
     }
 }
