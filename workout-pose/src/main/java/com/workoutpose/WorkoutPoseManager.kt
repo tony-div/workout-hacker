@@ -157,11 +157,14 @@ class WorkoutPoseManager {
     private var lastFrameTimeMs = 0L
 
     private fun processFrame(imageProxy: ImageProxy, config: WorkoutPoseConfig) {
-        val now = System.currentTimeMillis()
-        val minIntervalMs = (1000f / config.inferenceSampleRateHz).toLong().coerceAtLeast(1L)
-        if (now - lastFrameTimeMs < minIntervalMs) {
-            imageProxy.close()
-            return
+        val now = SystemClock.uptimeMillis()
+        val sampleHz = config.inferenceSampleRateHz
+        if (sampleHz > 0f) {
+            val minIntervalMs = (1000f / sampleHz).toLong().coerceAtLeast(1L)
+            if (now - lastFrameTimeMs < minIntervalMs) {
+                imageProxy.close()
+                return
+            }
         }
         lastFrameTimeMs = now
 
@@ -228,7 +231,7 @@ class WorkoutPoseManager {
         val inferenceTimeMs =
                 (SystemClock.uptimeMillis() - submissionTimeNs).coerceAtLeast(0L).toDouble()
 
-        val flat = engine.feed(coords, visibility, System.currentTimeMillis(), inferenceTimeMs)
+        val flat = engine.feed(coords, visibility, result.timestampMs(), inferenceTimeMs)
         if (flat.isEmpty()) return
 
         _poseState.value =
@@ -263,27 +266,20 @@ class WorkoutPoseManager {
             val rowStride = plane.rowStride
             val pixelStride = plane.pixelStride
 
-            if (rowStride == width * pixelStride) {
-                bitmap.copyPixelsFromBuffer(buffer)
-            } else {
-                val pixels = IntArray(width * height)
-                for (y in 0 until height) {
-                    buffer.position(y * rowStride)
-                    for (x in 0 until width) {
-                        val r = buffer.get().toInt() and 0xFF
-                        val g = buffer.get().toInt() and 0xFF
-                        val b = buffer.get().toInt() and 0xFF
-                        val a = buffer.get().toInt() and 0xFF
-                        pixels[y * width + x] =
-                                if (pixelStride == 4) {
-                                    (a shl 24) or (r shl 16) or (g shl 8) or b
-                                } else {
-                                    (0xFF shl 24) or (r shl 16) or (g shl 8) or b
-                                }
-                    }
+            val pixels = IntArray(width * height)
+            for (y in 0 until height) {
+                val rowStart = y * rowStride
+                for (x in 0 until width) {
+                    val pixelStart = rowStart + x * pixelStride
+                    if (pixelStart + 3 >= buffer.limit()) break
+                    val r = buffer.get(pixelStart).toInt() and 0xFF
+                    val g = buffer.get(pixelStart + 1).toInt() and 0xFF
+                    val b = buffer.get(pixelStart + 2).toInt() and 0xFF
+                    val a = buffer.get(pixelStart + 3).toInt() and 0xFF
+                    pixels[y * width + x] = (a shl 24) or (r shl 16) or (g shl 8) or b
                 }
-                bitmap.setPixels(pixels, 0, width, 0, 0, width, height)
             }
+            bitmap.setPixels(pixels, 0, width, 0, 0, width, height)
             bitmap
         } catch (e: Exception) {
             Log.e(TAG, "toArgbBitmap failed: ${e.message}")

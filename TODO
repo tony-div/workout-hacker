@@ -8,7 +8,7 @@
 - can we process a video stream directly from camera instead of image frames?
 - can we get rid of image analysis stuff and let mediapipe handle camera directly?
 - do we need to rotate the camera frame in processFrame?
-- use the landmarks result directly instead of flatenning it
+- use the landmarks result directly instead of flattening it
 - the latency indicator only computes the compute time of frame processing and mediapipe inference, it doesn't take frame capturing & decoding in consideration (the old version wasn't computing it either, but to make it more accurate for future benchmarking)
 - do we need toArgbBitmap()?
 - remove Optional motion prediction
