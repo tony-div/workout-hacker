@@ -67,6 +67,11 @@ class PoseAnalyzer(
         engine.updateOneEuroParameters(minCutoff, beta, dCutoff)
     }
 
+    /** Live-retunes the visibility-confidence threshold without reloading the model. */
+    fun updateVisibilityThreshold(minVisibilityConfidence: Float) {
+        engine.updateVisibilityThreshold(minVisibilityConfidence)
+    }
+
     /**
      * Feeds a bitmap (already upright / display-oriented) to MediaPipe for asynchronous detection.
      *
@@ -125,12 +130,12 @@ class PoseAnalyzer(
                         poseVisible =
                                 PoseGeometry.isPoseVisible(
                                         flat,
-                                        engine.config.minVisibilityConfidence
+                                        engine.currentMinVisibilityConfidence
                                 ),
                         visibleLandmarkCount =
                                 PoseGeometry.countVisible(
                                         flat,
-                                        engine.config.minVisibilityConfidence
+                                        engine.currentMinVisibilityConfidence
                                 ),
                         inferenceTimeMs = engine.lastInferenceTimeMs,
                         timestampMs = engine.lastFrameTimestampMs,

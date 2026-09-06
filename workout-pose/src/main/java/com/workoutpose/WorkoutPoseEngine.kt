@@ -22,6 +22,7 @@ class WorkoutPoseEngine(initialConfig: WorkoutPoseConfig = WorkoutPoseConfig.DEF
         set(value) {
             synchronized(stateLock) {
                 field = value
+                minVisibilityConfidence = value.minVisibilityConfidence
                 oneEuroMinCutoff = value.oneEuroMinCutoff
                 oneEuroBeta = value.oneEuroBeta
                 oneEuroDCutoff = value.oneEuroDCutoff
@@ -40,6 +41,14 @@ class WorkoutPoseEngine(initialConfig: WorkoutPoseConfig = WorkoutPoseConfig.DEF
     private var oneEuroBeta: Float = initialConfig.oneEuroBeta
     private var oneEuroDCutoff: Float = initialConfig.oneEuroDCutoff
 
+    /** Live visibility-confidence threshold, retunable on the fly via [updateVisibilityThreshold]. */
+    @Volatile
+    private var minVisibilityConfidence: Float = initialConfig.minVisibilityConfidence
+
+    /** Current visibility-confidence threshold used by recovery and pose-presence checks. */
+    val currentMinVisibilityConfidence: Float
+        get() = minVisibilityConfidence
+
     private var oneEuroFilters: Array<OneEuroFilter>? = null
     private var previousFrame: LandmarkFrame? = null
     private var latestFrame: LandmarkFrame? = null
@@ -53,6 +62,14 @@ class WorkoutPoseEngine(initialConfig: WorkoutPoseConfig = WorkoutPoseConfig.DEF
             oneEuroBeta = beta
             oneEuroDCutoff = dCutoff
             oneEuroFilters?.forEach { it.configure(minCutoff, beta, dCutoff) }
+        }
+    }
+
+    /** Re-tunes the visibility-confidence threshold in place without resetting filter state. */
+    fun updateVisibilityThreshold(confidence: Float) {
+        synchronized(stateLock) {
+            if (confidence < 0f || confidence > 1f) return
+            minVisibilityConfidence = confidence
         }
     }
 
@@ -89,7 +106,7 @@ class WorkoutPoseEngine(initialConfig: WorkoutPoseConfig = WorkoutPoseConfig.DEF
             if (config.enableVisibilityRecovery && lastGood != null && lastGood.size == coords.size
             ) {
                 for (index in visibility.indices) {
-                    if (visibility[index] < config.minVisibilityConfidence) {
+                    if (visibility[index] < minVisibilityConfidence) {
                         coords[index * 3] = lastGood[index * 3]
                         coords[index * 3 + 1] = lastGood[index * 3 + 1]
                         coords[index * 3 + 2] = lastGood[index * 3 + 2]
@@ -186,9 +203,9 @@ class WorkoutPoseEngine(initialConfig: WorkoutPoseConfig = WorkoutPoseConfig.DEF
     )
 
     private class OneEuroFilter {
-        private var minCutoff: Float = 3.0f
-        private var beta: Float = 0.04f
-        private var dCutoff: Float = 1.0f
+        private var minCutoff: Float = 4.0f
+        private var beta: Float = 0.06f
+        private var dCutoff: Float = 2.0f
         private var initialized = false
         private var previousTimestampSec = 0f
         private var previousValue = 0f

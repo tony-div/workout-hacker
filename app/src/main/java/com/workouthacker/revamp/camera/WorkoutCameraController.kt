@@ -90,6 +90,12 @@ class WorkoutCameraController {
         analyzer?.updateOneEuroParameters(minCutoff, beta, dCutoff)
     }
 
+    /** Live-retunes the visibility-confidence threshold without restarting the camera or model. */
+    @Synchronized
+    fun updateVisibilityThreshold(minVisibilityConfidence: Float) {
+        analyzer?.updateVisibilityThreshold(minVisibilityConfidence)
+    }
+
     @Synchronized
     fun stop() {
         try {

@@ -89,11 +89,14 @@ fun PoseScreen() {
     var oneEuroBeta by remember { mutableFloatStateOf(WorkoutPoseConfig.DEFAULT.oneEuroBeta) }
     var oneEuroDCutoff by remember { mutableFloatStateOf(WorkoutPoseConfig.DEFAULT.oneEuroDCutoff) }
     var visRecovery by remember { mutableStateOf(true) }
+    var minVisibilityConfidence by remember {
+        mutableFloatStateOf(WorkoutPoseConfig.DEFAULT.minVisibilityConfidence)
+    }
     var skeletonColor by remember { mutableStateOf(skeletonOptions[0]) }
 
     var appliedConfig by remember { mutableStateOf(WorkoutPoseConfig()) }
 
-    val analyzer = remember { PoseAnalyzer(context = context) }
+    val analyzer = remember { PoseAnalyzer() }
     val poseFrame by analyzer.poseState.collectAsStateWithLifecycle()
 
     val controller = remember { WorkoutCameraController() }
@@ -113,6 +116,12 @@ fun PoseScreen() {
     LaunchedEffect(oneEuroMinCutoff, oneEuroBeta, oneEuroDCutoff) {
         if (hasPermission) {
             controller.updateOneEuroParameters(oneEuroMinCutoff, oneEuroBeta, oneEuroDCutoff)
+        }
+    }
+
+    LaunchedEffect(minVisibilityConfidence) {
+        if (hasPermission) {
+            controller.updateVisibilityThreshold(minVisibilityConfidence)
         }
     }
 
@@ -138,6 +147,7 @@ fun PoseScreen() {
                         oneEuroBeta = oneEuroBeta,
                         oneEuroDCutoff = oneEuroDCutoff,
                         enableVisibilityRecovery = visRecovery,
+                        minVisibilityConfidence = minVisibilityConfidence,
                 )
     }
 
@@ -221,6 +231,16 @@ fun PoseScreen() {
             }
 
             ToggleRow("Visibility recovery", visRecovery) { visRecovery = it }
+
+            if (visRecovery) {
+                SliderRow(
+                        label = "Min confidence",
+                        valueText = String.format(Locale.US, "%.2f", minVisibilityConfidence),
+                        value = minVisibilityConfidence,
+                        range = 0f..1f,
+                        onValueChange = { minVisibilityConfidence = it },
+                )
+            }
 
             Text(
                     text = "Skeleton color",
