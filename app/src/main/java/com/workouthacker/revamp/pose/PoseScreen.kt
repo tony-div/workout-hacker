@@ -80,7 +80,7 @@ fun PoseScreen() {
             ) { granted -> hasPermission = granted }
 
     var useLite by remember { mutableStateOf(true) }
-    var useGpu by remember { mutableStateOf(false) }
+    var useGpu by remember { mutableStateOf(true) }
     var useFrontCamera by remember { mutableStateOf(true) }
     var oneEuro by remember { mutableStateOf(true) }
     var oneEuroMinCutoff by remember {
@@ -95,7 +95,11 @@ fun PoseScreen() {
     var skeletonColor by remember { mutableStateOf(skeletonOptions[0]) }
     var benchmarkLogging by remember { mutableStateOf(true) }
 
-    var appliedConfig by remember { mutableStateOf(WorkoutPoseConfig()) }
+    var appliedConfig by remember {
+        mutableStateOf(
+                WorkoutPoseConfig(delegateSelection = WorkoutPoseConfig.DELEGATE_GPU)
+        )
+    }
 
     val analyzer = remember { PoseAnalyzer() }
     val poseFrame by analyzer.poseState.collectAsStateWithLifecycle()
