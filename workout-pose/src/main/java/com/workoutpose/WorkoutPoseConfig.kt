@@ -30,6 +30,12 @@ data class WorkoutPoseConfig(
         val oneEuroBeta: Float = 0.06f,
         /** One Euro derivative cutoff in Hz (0.1..20). Speeds up/slows jitter rejection. */
         val oneEuroDCutoff: Float = 2.0f,
+        /**
+         * Emits one `PosePerf` logcat line per rendered pose frame (ts after One Euro
+         * smoothing + UI push, inference ms, backlog, upper-body visible count, motion).
+         * Defaults ON for benchmarking; disable for production.
+         */
+        val enableBenchmarkLogging: Boolean = true,
 ) {
     companion object {
         const val MODEL_POSE_LANDMARKER_FULL = 0

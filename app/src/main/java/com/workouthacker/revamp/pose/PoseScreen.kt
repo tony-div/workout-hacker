@@ -93,6 +93,7 @@ fun PoseScreen() {
         mutableFloatStateOf(WorkoutPoseConfig.DEFAULT.minVisibilityConfidence)
     }
     var skeletonColor by remember { mutableStateOf(skeletonOptions[0]) }
+    var benchmarkLogging by remember { mutableStateOf(true) }
 
     var appliedConfig by remember { mutableStateOf(WorkoutPoseConfig()) }
 
@@ -148,6 +149,7 @@ fun PoseScreen() {
                         oneEuroDCutoff = oneEuroDCutoff,
                         enableVisibilityRecovery = visRecovery,
                         minVisibilityConfidence = minVisibilityConfidence,
+                        enableBenchmarkLogging = benchmarkLogging,
                 )
     }
 
@@ -231,6 +233,8 @@ fun PoseScreen() {
             }
 
             ToggleRow("Visibility recovery", visRecovery) { visRecovery = it }
+
+            ToggleRow("Benchmark logging", benchmarkLogging) { benchmarkLogging = it }
 
             if (visRecovery) {
                 SliderRow(

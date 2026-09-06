@@ -6,6 +6,7 @@ import android.os.SystemClock
 import android.util.Log
 import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarkerResult
 import java.util.concurrent.ConcurrentHashMap
+import java.util.Locale
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,6 +35,8 @@ class PoseAnalyzer(
     private val inferenceTimestamps = ConcurrentHashMap<Long, Long>()
 
     private var helper: PoseLandmarkerHelper? = null
+
+    private var lastBenchmarkCoords: FloatArray? = null
 
     private val _poseState = MutableStateFlow(PoseFrame.empty())
     val poseState: StateFlow<PoseFrame> = _poseState.asStateFlow()
@@ -140,9 +143,43 @@ class PoseAnalyzer(
                         inferenceTimeMs = engine.lastInferenceTimeMs,
                         timestampMs = engine.lastFrameTimestampMs,
                 )
+
+        if (engine.config.enableBenchmarkLogging) {
+            logPosePerf(coords, visibility, inferenceTimeMs, inferenceTimestamps.size)
+        }
+    }
+
+    private fun logPosePerf(rawCoords: FloatArray, visibility: FloatArray, inferenceTimeMs: Double, backlog: Int) {
+        var upperBodyVisible = 0
+        for (i in UPPER_BODY_INDICES) {
+            if (visibility[i] >= UPPER_BODY_VISIBILITY_THRESHOLD) upperBodyVisible++
+        }
+
+        var motion = 0f
+        val prev = lastBenchmarkCoords
+        if (prev != null && prev.size == rawCoords.size) {
+            for (i in UPPER_BODY_INDICES) {
+                if (visibility[i] < UPPER_BODY_VISIBILITY_THRESHOLD) continue
+                val dx = rawCoords[i * 3] - prev[i * 3]
+                val dy = rawCoords[i * 3 + 1] - prev[i * 3 + 1]
+                motion += kotlin.math.sqrt(dx * dx + dy * dy)
+            }
+        }
+        lastBenchmarkCoords = rawCoords.copyOf()
+
+        Log.d(
+                "PosePerf",
+                "ts=${SystemClock.uptimeMillis()} " +
+                        "inf=${String.format(Locale.US, "%.1f", inferenceTimeMs)} " +
+                        "backlog=$backlog " +
+                        "ub_vis=$upperBodyVisible " +
+                        "motion=${String.format(Locale.US, "%.4f", motion)}",
+        )
     }
 
     private companion object {
         const val TAG = "PoseAnalyzer"
+        const val UPPER_BODY_VISIBILITY_THRESHOLD = 0.8f
+        val UPPER_BODY_INDICES = intArrayOf(11, 12, 13, 14, 15, 16, 23, 24)
     }
 }
