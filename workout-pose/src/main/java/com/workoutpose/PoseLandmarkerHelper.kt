@@ -100,17 +100,19 @@ class PoseLandmarkerHelper(
      * rotation option here is unreliable for remapping the returned landmark
      * coordinates into the rotated frame.
      */
-    fun detectAsync(bitmap: Bitmap, timestampMs: Long) {
+    fun detectAsync(bitmap: Bitmap, timestampMs: Long): Boolean {
         val landmarker = poseLandmarker
         if (landmarker == null) {
             Log.e(TAG, "detectAsync: poseLandmarker is null")
-            return
+            return false
         }
-        try {
+        return try {
             val mpImage = BitmapImageBuilder(bitmap).build()
             landmarker.detectAsync(mpImage, timestampMs)
+            true
         } catch (e: Exception) {
             Log.e(TAG, "detectAsync: error: ${e.message}", e)
+            false
         }
     }
 

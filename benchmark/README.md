@@ -100,5 +100,6 @@ python3 analyze.py --logs bench-revamp.log bench-rn.log --csv all.csv
 |---|---|---|---|---|---|---|---|
 | 2026-09-06 | Xiaomi 23021RAAEG, Android 15 | revamp (CPU) | 83.0 | 110.0 | 181.0 | 11.1 | 2931 |
 | 2026-09-06 | Xiaomi 23021RAAEG, Android 15 | revamp (GPU) | 75.0 | 133.0 | 199.0 | 11.5 | 639 |
+| 2026-09-06 | Xiaomi 23021RAAEG, Android 15 | revamp (GPU + downscaled) | 70.0 | 120.0 | 143.0 | 12.9 | 782 |
 | 2026-09-06 | Xiaomi 23021RAAEG, Android 15 | rn | 88.0 | 117.0 | 174.0 | 10.9 | 2727 |
 | _(fill in)_ | | | | | | | |

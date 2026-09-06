@@ -15,7 +15,7 @@ usage() {
 
 APP=""
 DURATION=90
-WARMUP=2
+WARMUP=10
 ROUNDS=3
 OUT=""
 DEVICE=""

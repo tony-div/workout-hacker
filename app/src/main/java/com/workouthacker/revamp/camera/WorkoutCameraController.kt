@@ -154,7 +154,7 @@ class WorkoutCameraController {
         lastFrameTimeMs = now
 
         val rotationDegrees = imageProxy.imageInfo.rotationDegrees
-        val sensorBitmap = imageProxy.toArgbBitmap()
+        val scaledBitmap = imageProxy.toDownscaledBitmap(MAX_POSE_INPUT_SIDE_LONG)
         val rawTimestampNs = imageProxy.imageInfo.timestamp
         val timestampMs =
             if (rawTimestampNs > 0) {
@@ -163,70 +163,89 @@ class WorkoutCameraController {
                 System.currentTimeMillis()
             }
         imageProxy.close()
-        if (sensorBitmap == null) return
+        if (scaledBitmap == null) return
 
-        // Rotate the sensor frame into upright (display) orientation so landmark
-        // coordinates share the exact same frame as the PreviewView.
+        // Rotate the scaled sensor frame into upright (display) orientation so landmark
+        // coordinates share the exact same frame as the PreviewView. Rotation on the small
+        // bitmap is one cheap copy (the expensive full-res pass already fed the downscale).
         val uprightBitmap =
             if (rotationDegrees == 0) {
-                sensorBitmap
+                scaledBitmap
             } else {
                 val matrix = Matrix().apply { postRotate(rotationDegrees.toFloat()) }
                 Bitmap.createBitmap(
-                        sensorBitmap,
+                        scaledBitmap,
                         0,
                         0,
-                        sensorBitmap.width,
-                        sensorBitmap.height,
+                        scaledBitmap.width,
+                        scaledBitmap.height,
                         matrix,
                         true
                     )
-                    .also { sensorBitmap.recycle() }
+                    .also { scaledBitmap.recycle() }
             }
 
         analyzer?.detectAsync(uprightBitmap, timestampMs)
         uprightBitmap.recycle()
     }
 
-    private fun ImageProxy.toArgbBitmap(): Bitmap? {
+    /**
+     * Copies the RGBA sensor frame into an ARGB bitmap whose long side is capped at [maxSideLong],
+     * using nearest-neighbour sampling. Rows are pulled out of the ByteBuffer in bulk (one native
+     * copy per row) so per-pixel access stays on the JVM; when no scaling is needed and the row
+     * stride is tight, delegates to the fast bulk [Bitmap.copyPixelsFromBuffer] instead.
+     */
+    private fun ImageProxy.toDownscaledBitmap(maxSideLong: Int): Bitmap? {
         return try {
             val width = this.width
             val height = this.height
             if (width <= 0 || height <= 0) return null
 
-            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            val scale = minOf(1f, maxSideLong.toFloat() / maxOf(width, height))
+            val outWidth = maxOf(1, (width * scale).toInt())
+            val outHeight = maxOf(1, (height * scale).toInt())
+
             val plane = planes[0]
             val buffer = plane.buffer
             buffer.rewind()
             val rowStride = plane.rowStride
             val pixelStride = plane.pixelStride
 
-            if (rowStride == width * pixelStride) {
-                bitmap.copyPixelsFromBuffer(buffer)
-            } else {
-                val pixels = IntArray(width * height)
-                for (y in 0 until height) {
-                    val rowStart = y * rowStride
-                    for (x in 0 until width) {
-                        val pixelStart = rowStart + x * pixelStride
-                        if (pixelStart + 3 >= buffer.limit()) break
-                        val r = buffer.get(pixelStart).toInt() and 0xFF
-                        val g = buffer.get(pixelStart + 1).toInt() and 0xFF
-                        val b = buffer.get(pixelStart + 2).toInt() and 0xFF
-                        val a = buffer.get(pixelStart + 3).toInt() and 0xFF
-                        pixels[y * width + x] = (a shl 24) or (r shl 16) or (g shl 8) or b
-                    }
-                }
-                bitmap.setPixels(pixels, 0, width, 0, 0, width, height)
+            if (scale >= 1f && rowStride == width * pixelStride) {
+                return Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                    .also { it.copyPixelsFromBuffer(buffer) }
             }
-            bitmap
+
+            val rowBytes = width * pixelStride
+            val row = ByteArray(rowBytes)
+            val pixels = IntArray(outWidth * outHeight)
+            for (dy in 0 until outHeight) {
+                val sourceY = (dy / scale).toInt().coerceIn(0, height - 1)
+                buffer.position(sourceY * rowStride)
+                val count = minOf(rowBytes, buffer.remaining())
+                buffer.get(row, 0, count)
+                val rowBase = dy * outWidth
+                for (dx in 0 until outWidth) {
+                    val sourceX = (dx / scale).toInt().coerceIn(0, width - 1)
+                    val p = sourceX * pixelStride
+                    val r = row[p].toInt() and 0xFF
+                    val g = row[p + 1].toInt() and 0xFF
+                    val b = row[p + 2].toInt() and 0xFF
+                    val a = row[p + 3].toInt() and 0xFF
+                    pixels[rowBase + dx] = (a shl 24) or (r shl 16) or (g shl 8) or b
+                }
+            }
+
+            Bitmap.createBitmap(pixels, outWidth, outHeight, Bitmap.Config.ARGB_8888)
         } catch (e: Exception) {
-            Log.e(TAG, "toArgbBitmap failed: ${e.message}")
+            Log.e(TAG, "toDownscaledBitmap failed: ${e.message}")
             null
         }
     }
 
     private companion object {
         const val TAG = "WorkoutCameraController"
+        /** Long-side cap for the pose input bitmap (matching MediaPipe's internal resize). */
+        const val MAX_POSE_INPUT_SIDE_LONG = 640
     }
 }

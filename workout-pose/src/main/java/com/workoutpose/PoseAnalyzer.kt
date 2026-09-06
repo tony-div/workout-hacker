@@ -81,10 +81,12 @@ class PoseAnalyzer(
      * Note: no [com.google.mediapipe.tasks.vision.core.ImageProcessingOptions] rotation is used on
      * purpose. The caller feeds pre-rotated bitmaps; the Tasks rotation option is unreliable for
      * remapping the returned landmark coordinates into the rotated frame.
+     *
+     * @return `true` if the frame was submitted to MediaPipe.
      */
-    fun detectAsync(bitmap: Bitmap, timestampMs: Long) {
+    fun detectAsync(bitmap: Bitmap, timestampMs: Long): Boolean {
         inferenceTimestamps[timestampMs] = SystemClock.uptimeMillis()
-        helper?.detectAsync(bitmap, timestampMs)
+        return helper?.detectAsync(bitmap, timestampMs) == true
     }
 
     /** Releases the underlying landmarker. Safe to call multiple times. */
