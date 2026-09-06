@@ -1,11 +1,11 @@
 package com.workoutpose
 
-import androidx.camera.core.CameraSelector
-
 /**
- * Configuration for the [WorkoutPoseManager].
+ * Configuration for the [PoseAnalyzer].
  *
- * All options are validated/clamped by the engine at runtime.
+ * Camera concerns (lens facing, frame rate gating) are owned by the host app;
+ * this config only covers pose processing parameters. All options are
+ * validated/clamped by the engine at runtime.
  */
 data class WorkoutPoseConfig(
     /** See [MODEL_POSE_LANDMARKER_FULL], [MODEL_POSE_LANDMARKER_LITE], [MODEL_POSE_LANDMARKER_HEAVY]. */
@@ -14,7 +14,7 @@ data class WorkoutPoseConfig(
     val delegateSelection: Int = DELEGATE_CPU,
     /** Landmark visibility threshold in 0..1 used for filtering and pose-presence. */
     val minVisibilityConfidence: Float = 0.9f,
-    /** Target inference rate in Hz (0..30). */
+    /** Target inference rate in Hz (0..30); used by the host app to gate frame submission. */
     val inferenceSampleRateHz: Float = 30f,
     /** Freeze low-confidence landmarks to their last-known-good position. */
     val enableVisibilityRecovery: Boolean = true,
@@ -23,13 +23,11 @@ data class WorkoutPoseConfig(
     /** Linear extrapolation of the latest frame to the current wall-clock time. */
     val enableMotionPrediction: Boolean = false,
     /** One Euro minimum cutoff in Hz (0.1..10). Higher = less lag at rest, more jitter. */
-    val oneEuroMinCutoff: Float = 2.0f,
+    val oneEuroMinCutoff: Float = 3.0f,
     /** One Euro velocity response (0..0.1). Higher = keeps up with fast motion. */
-    val oneEuroBeta: Float = 0.02f,
+    val oneEuroBeta: Float = 0.04f,
     /** One Euro derivative cutoff in Hz (0.1..20). Speeds up/slows jitter rejection. */
     val oneEuroDCutoff: Float = 1.0f,
-    /** CameraX lens facing, one of [CameraSelector.LENS_FACING_FRONT] / [CameraSelector.LENS_FACING_BACK]. */
-    val lensFacing: Int = CameraSelector.LENS_FACING_FRONT,
 ) {
     companion object {
         const val MODEL_POSE_LANDMARKER_FULL = 0

@@ -96,7 +96,7 @@ class PoseLandmarkerHelper(
      * Runs detection on a bitmap that is already in display (upright) orientation.
      *
      * Note: no [ImageProcessingOptions] rotation is used on purpose. Feed frames
-     * pre-rotated to the upright orientation (see [WorkoutPoseManager]); the Tasks
+     * pre-rotated to the upright orientation (see [PoseAnalyzer]); the Tasks
      * rotation option here is unreliable for remapping the returned landmark
      * coordinates into the rotated frame.
      */

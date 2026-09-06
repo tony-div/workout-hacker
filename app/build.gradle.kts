@@ -52,6 +52,14 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.kotlinx.coroutines.android)
 
+    // CameraX lifecycle is owned by the app (WorkoutCameraController feeds workout-pose).
+    implementation(libs.androidx.camera.core)
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
+    // CameraX exposes Guava's ListenableFuture (compileOnly); full Guava provides the class.
+    implementation(libs.guava)
+
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
     implementation(libs.compose.ui.graphics)

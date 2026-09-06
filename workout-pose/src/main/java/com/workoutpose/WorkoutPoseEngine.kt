@@ -186,8 +186,8 @@ class WorkoutPoseEngine(initialConfig: WorkoutPoseConfig = WorkoutPoseConfig.DEF
     )
 
     private class OneEuroFilter {
-        private var minCutoff: Float = 0.4f
-        private var beta: Float = 0.007f
+        private var minCutoff: Float = 3.0f
+        private var beta: Float = 0.04f
         private var dCutoff: Float = 1.0f
         private var initialized = false
         private var previousTimestampSec = 0f

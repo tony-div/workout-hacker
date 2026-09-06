@@ -33,6 +33,11 @@ androidx-camera-view = { group = "androidx.camera", name = "camera-view", versio
 
 mediapipe-tasks-vision = { group = "com.google.mediapipe", name = "tasks-vision", version.ref = "mediapipe" }
 
+# CameraX leaks Guava's ListenableFuture into public signatures (compileOnly). Gradle
+# resolves the standalone listenablefuture artifact to the empty conflict-avoidance
+# version, so full Guava is required to provide the class.
+guava = { group = "com.google.guava", name = "guava", version = "31.1-android" }
+
 desugar-jdk-libs = { group = "com.android.tools", name = "desugar_jdk_libs", version.ref = "desugar" }
 
 [plugins]

@@ -49,10 +49,11 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.workouthacker.revamp.camera.WorkoutCameraController
+import com.workoutpose.PoseAnalyzer
 import com.workoutpose.PoseFrame
 import com.workoutpose.PoseSkeletonOverlay
 import com.workoutpose.WorkoutPoseConfig
-import com.workoutpose.WorkoutPoseManager
 import java.util.Locale
 
 private val skeletonOptions =
@@ -92,26 +93,30 @@ fun PoseScreen() {
 
     var appliedConfig by remember { mutableStateOf(WorkoutPoseConfig()) }
 
-    val manager = remember { WorkoutPoseManager() }
-    val poseFrame by manager.poseState.collectAsStateWithLifecycle()
+    val analyzer = remember { PoseAnalyzer(context = context) }
+    val poseFrame by analyzer.poseState.collectAsStateWithLifecycle()
 
+    val controller = remember { WorkoutCameraController() }
     val previewView = remember {
         PreviewView(context).apply { scaleType = PreviewView.ScaleType.FILL_CENTER }
     }
 
+    val lensFacing =
+        if (useFrontCamera) CameraSelector.LENS_FACING_FRONT else CameraSelector.LENS_FACING_BACK
+
     LaunchedEffect(hasPermission, appliedConfig) {
         if (hasPermission) {
-            manager.start(context, lifecycleOwner, previewView, appliedConfig)
+            controller.start(context, lifecycleOwner, previewView, analyzer, appliedConfig, lensFacing)
         }
     }
 
     LaunchedEffect(oneEuroMinCutoff, oneEuroBeta, oneEuroDCutoff) {
         if (hasPermission) {
-            manager.updateOneEuroParameters(oneEuroMinCutoff, oneEuroBeta, oneEuroDCutoff)
+            controller.updateOneEuroParameters(oneEuroMinCutoff, oneEuroBeta, oneEuroDCutoff)
         }
     }
 
-    DisposableEffect(manager) { onDispose { manager.stop() } }
+    DisposableEffect(controller) { onDispose { controller.stop() } }
 
     val applyConfig = {
         appliedConfig =
@@ -128,9 +133,6 @@ fun PoseScreen() {
                                 } else {
                                     WorkoutPoseConfig.DELEGATE_CPU
                                 },
-                        lensFacing =
-                                if (useFrontCamera) CameraSelector.LENS_FACING_FRONT
-                                else CameraSelector.LENS_FACING_BACK,
                         enableOneEuroFilter = oneEuro,
                         oneEuroMinCutoff = oneEuroMinCutoff,
                         oneEuroBeta = oneEuroBeta,
@@ -164,7 +166,7 @@ fun PoseScreen() {
                 poseFrame = poseFrame,
                 hasPermission = hasPermission,
                 skeletonColor = skeletonColor,
-                mirrorPreview = appliedConfig.lensFacing == CameraSelector.LENS_FACING_FRONT,
+                mirrorPreview = useFrontCamera,
                 onRequestPermission = { permissionLauncher.launch(Manifest.permission.CAMERA) },
         )
 

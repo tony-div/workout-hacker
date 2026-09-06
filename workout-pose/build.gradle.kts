@@ -32,14 +32,9 @@ dependencies {
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.kotlinx.coroutines.android)
-    implementation(libs.androidx.lifecycle.runtime.ktx)
 
-    // CameraX leaks into the public API (PreviewView, CameraSelector), so expose as `api`.
-    api(libs.androidx.camera.core)
-    api(libs.androidx.camera.camera2)
-    implementation(libs.androidx.camera.lifecycle)
-    api(libs.androidx.camera.view)
-
+    // No CameraX dependency on purpose: the host app owns the camera lifecycle
+    // and feeds this library upright bitmaps (see PoseAnalyzer).
     implementation(libs.mediapipe.tasks.vision)
 
     implementation(platform(libs.compose.bom))

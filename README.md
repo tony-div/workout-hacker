@@ -5,14 +5,16 @@ React Native app and the `react-native-pose-landmarks` module.
 
 ## Modules
 
-**`app`** — Compose UI. Preview + skeleton overlay + joint-angle readout,
-model/delegate/camera/filter controls, camera permission flow.
+**`app`** — Compose UI + CameraX lifecycle owner.
+- `WorkoutCameraController` — binds CameraX `Preview` + `ImageAnalysis` to the
+  lifecycle, converts/rotates frames, and feeds upright bitmaps to the library.
+- `PoseScreen` — preview + skeleton overlay + joint-angle readout,
+  model/delegate/camera/filter controls, camera permission flow.
 
-**`workout-pose`** — reusable Android library:
-- `WorkoutPoseManager` — CameraX Preview + ImageAnalysis binding, exposes
+**`workout-pose`** — reusable Android library (no CameraX dependency):
+- `PoseAnalyzer` — consumes upright `Bitmap`s, runs MediaPipe pose detection
+  in LIVE_STREAM mode, applies engine post-processing, exposes
   `StateFlow<PoseFrame> poseState`.
-- `PoseLandmarkerHelper` — MediaPipe `tasks-vision` LiveStream wrapper
-  (`pose_landmarker_lite.task` bundled in `app/src/main/assets/`).
 - `WorkoutPoseEngine` — One Euro filtering, visibility recovery, motion prediction.
 - `PoseGeometry` — angles, visibility, skeleton connections.
 - `PoseSkeletonOverlay` — Compose canvas overlay.
