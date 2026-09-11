@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -32,8 +34,10 @@ android {
         isCoreLibraryDesugaringEnabled = true
     }
 
-    kotlinOptions {
-        jvmTarget = "11"
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_11)
+        }
     }
 
     buildFeatures {
@@ -45,6 +49,10 @@ dependencies {
     coreLibraryDesugaring(libs.desugar.jdk.libs)
 
     implementation(project(":workout-pose"))
+    implementation(project(":workout-exercise"))
+    implementation(project(":workout-reps"))
+    implementation(project(":workout-tempo"))
+    implementation(project(":workout-ghost"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

@@ -25,9 +25,12 @@ reusable `workout-pose` android library. Replaces the old React Native
 ## Build / verify
 Use the wrapper — the system `gradle` is 4.4.1 and must NOT be used.
 
-- `./gradlew :app:assembleDebug` — build debug APK.
-- `./gradlew :workout-pose:assembleDebug` — build library AAR.
-- `./gradlew :app:lintDebug` — lint.
+- NEVER run builds (`./gradlew assemble*`, `build`, `lint`, tests) autonomously.
+  Only write/verify code; the user runs all builds themselves.
+- Build commands (for user reference only — do NOT execute):
+  - `./gradlew :app:assembleDebug` — build debug APK.
+  - `./gradlew :workout-pose:assembleDebug` — build library AAR.
+  - `./gradlew :app:lintDebug` — lint.
 - No `test` sources yet.
 
 Version catalog: `gradle/libs.versions.toml` (single source of truth).

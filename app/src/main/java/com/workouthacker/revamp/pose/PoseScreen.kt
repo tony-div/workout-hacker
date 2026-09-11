@@ -2,6 +2,8 @@ package com.workouthacker.revamp.pose
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.os.SystemClock
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
@@ -50,10 +52,13 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.workouthacker.revamp.camera.WorkoutCameraController
+import com.workouthacker.revamp.session.ExerciseModelState
+import com.workouthacker.revamp.session.WorkoutSessionOrchestrator
 import com.workoutpose.PoseAnalyzer
 import com.workoutpose.PoseFrame
 import com.workoutpose.PoseSkeletonOverlay
 import com.workoutpose.WorkoutPoseConfig
+import com.workoutpose.ghost.GhostProcessResult
 import java.util.Locale
 
 private val skeletonOptions =
@@ -62,6 +67,9 @@ private val skeletonOptions =
                 Color(0xFF00E5FF),
                 Color(0xFFFFEB3B),
         )
+
+/** Ghost guide UI (pink overlay + Form rows). Hidden until the ghost UX is finalized. */
+private const val SHOW_GHOST = false
 
 @Composable
 fun PoseScreen() {
@@ -103,6 +111,41 @@ fun PoseScreen() {
 
     val analyzer = remember { PoseAnalyzer() }
     val poseFrame by analyzer.poseState.collectAsStateWithLifecycle()
+
+    // Full pose-frame pipeline (exercise → reps → tempo → ghost), no sensors.
+    val session = remember(context) { WorkoutSessionOrchestrator(context) }
+    val modelState by session.modelState.collectAsStateWithLifecycle()
+    val exercisePrediction by session.exercisePrediction.collectAsStateWithLifecycle()
+    val repState by session.repState.collectAsStateWithLifecycle()
+    val tempoState by session.tempoState.collectAsStateWithLifecycle()
+    val ghostResult by session.ghostResult.collectAsStateWithLifecycle()
+
+    LaunchedEffect(session) {
+        session.ghostEnabled = SHOW_GHOST
+        session.ensureModels()
+    }
+
+    LaunchedEffect(benchmarkLogging) {
+        session.benchmarkLogging = benchmarkLogging
+    }
+
+    // Cold-start markers for the benchmark harness (one-shot logcat lines).
+    LaunchedEffect(Unit) {
+        Log.d("ColdStart", "appStart uptimeMs=${SystemClock.uptimeMillis()}")
+    }
+    var firstPoseLogged by remember { mutableStateOf(false) }
+    LaunchedEffect(poseFrame, benchmarkLogging) {
+        if (benchmarkLogging && poseFrame.poseVisible && !firstPoseLogged) {
+            firstPoseLogged = true
+            Log.d("ColdStart", "firstPose uptimeMs=${SystemClock.uptimeMillis()}")
+        }
+    }
+
+    LaunchedEffect(poseFrame) {
+        session.processFrame(poseFrame.landmarks)
+    }
+
+    DisposableEffect(session) { onDispose { session.stopAll() } }
 
     val controller = remember { WorkoutCameraController() }
     val previewView = remember {
@@ -180,10 +223,26 @@ fun PoseScreen() {
         CameraPreviewCard(
                 previewView = previewView,
                 poseFrame = poseFrame,
+                ghostFrame = if (SHOW_GHOST) ghostResult?.ghostSkeleton?.toPoseFrame() else null,
                 hasPermission = hasPermission,
                 skeletonColor = skeletonColor,
                 mirrorPreview = useFrontCamera,
                 onRequestPermission = { permissionLauncher.launch(Manifest.permission.CAMERA) },
+        )
+
+        TrackingPanel(
+                modelState = modelState,
+                exercise = exercisePrediction.exercise,
+                exerciseConfidence = exercisePrediction.confidence,
+                exerciseMs = exercisePrediction.inferenceMs,
+                reps = repState.reps,
+                phase = repState.phase,
+                activeArm = repState.activeArm,
+                repMs = repState.inferenceMs,
+                tempo = tempoState.tempo,
+                tempoQuality = tempoState.quality,
+                tempoMs = tempoState.inferenceMs,
+                ghostResult = if (SHOW_GHOST) ghostResult else null,
         )
 
         Panel(title = "Controls") {
@@ -296,6 +355,7 @@ fun PoseScreen() {
 private fun CameraPreviewCard(
         previewView: PreviewView,
         poseFrame: PoseFrame,
+        ghostFrame: PoseFrame?,
         hasPermission: Boolean,
         skeletonColor: Color,
         mirrorPreview: Boolean,
@@ -323,6 +383,17 @@ private fun CameraPreviewCard(
                     skeletonColor = skeletonColor,
                     mirror = mirrorPreview,
             )
+            // Ghost reference skeleton (pink), same mirroring as the user overlay.
+            if (ghostFrame != null) {
+                PoseSkeletonOverlay(
+                        frame = ghostFrame,
+                        modifier = Modifier.fillMaxSize(),
+                        skeletonColor = Color(0xFFFF6584),
+                        landmarkColor = Color(0xFFFF6584),
+                        minVisibility = 0f,
+                        mirror = mirrorPreview,
+                )
+            }
         }
 
         Badge(
@@ -386,6 +457,70 @@ private fun ReadoutPanel(poseFrame: PoseFrame) {
         labels.zip(poseFrame.angles.all).forEach { (label, value) ->
             StatRow(label, fmtAngle(value))
         }
+    }
+}
+
+@Composable
+private fun TrackingPanel(
+        modelState: ExerciseModelState,
+        exercise: String?,
+        exerciseConfidence: Double,
+        exerciseMs: Double,
+        reps: Double,
+        phase: String,
+        activeArm: String?,
+        repMs: Double,
+        tempo: String,
+        tempoQuality: Double,
+        tempoMs: Double,
+        ghostResult: GhostProcessResult?,
+) {
+    Panel(title = "Exercise Tracking") {
+        val modelText = when (modelState) {
+            is ExerciseModelState.Checking -> "Checking cache…"
+            is ExerciseModelState.Downloading -> {
+                val mb = modelState.receivedBytes / 1_048_576.0
+                if (modelState.totalBytes > 0) {
+                    val pct = (100 * modelState.receivedBytes / modelState.totalBytes).toInt()
+                    String.format(Locale.US, "Downloading model… %.1f MB (%d%%)", mb, pct)
+                } else {
+                    String.format(Locale.US, "Downloading model… %.1f MB", mb)
+                }
+            }
+            is ExerciseModelState.Ready -> "Model ready"
+            is ExerciseModelState.Error -> "Model error: ${modelState.message}"
+        }
+        StatRow("Model", modelText)
+        StatRow("Exercise", exercise ?: "Detecting…")
+        StatRow(
+                "Confidence",
+                if (exercise == null) "--"
+                else String.format(Locale.US, "%.1f%%", exerciseConfidence * 100),
+        )
+        StatRow("Reps", String.format(Locale.US, "%.0f", reps))
+        StatRow("Phase", phase)
+        StatRow("Arm", activeArm ?: "--")
+        StatRow("Tempo", tempo)
+        StatRow(
+                "Tempo quality",
+                if (tempo == "unknown") "--"
+                else String.format(Locale.US, "%.0f%%", tempoQuality),
+        )
+        ghostResult?.let { ghost ->
+            // Same formula as the old app: 100 - deviation * 150.
+            val formScore = (100 - ghost.deviation * 150).toInt().coerceIn(0, 100)
+            StatRow("Form", "$formScore%")
+            StatRow("Ghost aligned", if (ghost.isAligned) "YES" else "NO")
+        }
+        Text(
+                text = "Inference latency",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 13.sp,
+                modifier = Modifier.padding(top = 10.dp, bottom = 4.dp),
+        )
+        StatRow("Exercise RF", fmtLatency(exerciseMs))
+        StatRow("Rep update", fmtLatency(repMs))
+        StatRow("Tempo RF", fmtLatency(tempoMs))
     }
 }
 
@@ -543,6 +678,39 @@ private fun Badge(text: String, color: Color, modifier: Modifier = Modifier) {
 
 private fun fmtMs(value: Double): String =
         if (value < 0) "--" else String.format(Locale.US, "%.0f ms", value)
+
+/** Adapts a ghost skeleton for [PoseSkeletonOverlay] (full visibility). */
+private fun com.workoutpose.ghost.Skeleton.toPoseFrame(): PoseFrame {
+    val flat = FloatArray(points.size * 4)
+    points.forEachIndexed { i, p ->
+        flat[i * 4] = p.x.toFloat()
+        flat[i * 4 + 1] = p.y.toFloat()
+        flat[i * 4 + 2] = p.z.toFloat()
+        flat[i * 4 + 3] = 1f
+    }
+    return PoseFrame(
+            landmarks = flat,
+            angles = com.workoutpose.JointAngles(),
+            poseVisible = true,
+            visibleLandmarkCount = points.size,
+            inferenceTimeMs = -1.0,
+            timestampMs = 0L,
+    )
+}
+
+/**
+ * Latency formatter with microsecond resolution below 1 ms.
+ *
+ * The rep phase machine (pure angle math) and the tempo RF call (1 row ×
+ * 5 features × 200 shallow trees) genuinely run in tens of microseconds,
+ * so the whole-ms [fmtMs] rounded them to a permanent-looking "0 ms".
+ */
+private fun fmtLatency(value: Double): String =
+        when {
+            value < 0 -> "--"
+            value < 1 -> String.format(Locale.US, "%.0f µs", value * 1000)
+            else -> String.format(Locale.US, "%.1f ms", value)
+        }
 
 private fun fmtAngle(value: Float): String =
         if (value < 0) "--" else String.format(Locale.US, "%.0f°", value)
