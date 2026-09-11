@@ -19,3 +19,4 @@ rootProject.name = "workout-hacker-revamp"
 include(":app")
 include(":workout-pose")
 include(":workout-randomforest")
+include(":workout-exercise")
