@@ -1,0 +1,15 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "lsp": {
+    "kotlin": {
+      "command": ["/home/tony/.cache/opencode/bin/kotlin-ls/kotlin-lsp.sh"],
+      "extensions": [".kt", ".kts"]
+    }
+  },
+  "mcp": {
+    "codanna": {
+      "type": "local",
+      "command": ["codanna", "--config", ".codanna/settings.toml", "serve", "--watch"]
+    }
+  }
+}

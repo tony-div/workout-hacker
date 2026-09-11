@@ -1,0 +1,24 @@
+- make sure the cameraX lifecycle is managed by the main app not workoutpose package. the workoutpose package should be only a consumer
+- add option to hide camera preview and only view skeleton preview
+- is the ConcurrentHashMap<Long, Long>() in WorkoutPoseManager.kt really needed?
+- do workoutpose need concurrency?
+- remove the model asset files from app assets and add script to download it on device on first open
+- live update all config variables
+- the frame throttling logic is in processFrame(), make the image analyzer throttle instead so it doesn't output useless decoded frames to frame processor
+- can we process a video stream directly from camera instead of image frames?
+- can we get rid of image analysis stuff and let mediapipe handle camera directly?
+- do we need to rotate the camera frame in processFrame?
+- use the landmarks result directly instead of flattening it
+- the latency indicator only computes the compute time of frame processing and mediapipe inference, it doesn't take frame capturing & decoding in consideration (the old version wasn't computing it either, but to make it more accurate for future benchmarking)
+- do we need toArgbBitmap()?
+- remove Optional motion prediction
+- fix stateLock = Any() 
+- is there any filter better than one-euro filter (achieving same level of responsiveness, and signal smoothness but with even less latency)?
+- we can ignore palm landmarks
+- is the copies at feed() needed?
+- predict() function is no longer needed (the optional motion prediction)
+- flattenFrame() is no longer needed
+- joint angles computation in workoutpose isn't needed in this package
+- heavy math computation should be tested in rust for performance gains
+- review app code
+- syncing all config ui controls with actual engine config on ui state update
