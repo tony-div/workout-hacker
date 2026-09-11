@@ -45,6 +45,10 @@ dependencies {
     coreLibraryDesugaring(libs.desugar.jdk.libs)
 
     implementation(project(":workout-pose"))
+    implementation(project(":workout-exercise"))
+    implementation(project(":workout-reps"))
+    implementation(project(":workout-tempo"))
+    implementation(project(":workout-ghost"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
